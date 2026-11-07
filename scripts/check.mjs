@@ -1,0 +1,22 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+const sandbox={window:{}};
+vm.runInNewContext(fs.readFileSync('assets/data.js','utf8'),sandbox);
+new vm.Script(fs.readFileSync('assets/app.js','utf8'));
+const data=sandbox.window.ACU;
+assert.equal(data.meridians.length,14);
+assert.equal(data.meridians.reduce((n,m)=>n+m.count,0),362);
+assert.equal(data.lessons.length,8);
+assert.equal(data.points.length,141);
+const ids=data.points.map(p=>p.code);
+assert.equal(new Set(ids).size,ids.length,'穴位编号不得重复');
+for(const m of data.meridians){assert(fs.existsSync('meridians/'+m.slug+'/index.html'));assert(data.points.filter(p=>p.meridian===m.code).length>0);};
+for(const l of data.lessons)assert(fs.existsSync('learn/'+l[0]+'/index.html'));
+for(const code of Object.values(data.fiveshu).flat())assert(data.names[code],'五输穴名称缺失 '+code);
+for(const row of data.yuanluoxi)for(const code of row.slice(1))assert(data.names[code],'原络郄名称缺失 '+code);
+for(const row of data.confluent)for(const code of row.slice(0,2))assert(data.names[code],'八脉交会穴名称缺失 '+code);
+for(const row of data.lowerHe)assert(data.names[row[1]],'下合穴名称缺失 '+row[1]);
+for(const p of data.points){const m=data.meridians.find(m=>m.code===p.meridian);assert(m);assert(Number(p.code.replace(/^[A-Z]+/,''))<=m.count);assert(p.where&&p.how&&p.cun);}
+for(const path of ['index.html','meridians/index.html','learn/index.html','points/index.html','topics/index.html','sources/index.html','assets/style.css','assets/app.js'])assert(fs.existsSync(path),path);
+console.log('✓ 静态网站校验通过：14经脉 / 141重点穴 / 8课程 / 362国标总数 / 所有路由');
